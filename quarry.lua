@@ -1,296 +1,228 @@
-local tArgs = {...}
-local size = tonumber(tArgs[1])
-local meter = tonumber(tArgs[2])
+turtle.refuel()
 
-local stepSize = size - 1
-local area = size * size
-local diggedLevel = 0
-
---To move forward and mine if interupted
-function frwd(steps)  
-    for i = 1, steps do 
-        turtle.digUp()
-        turtle.digDown()
-        
-        while not turtle.forward() do
-            turtle.dig()
-        end
-    end
+function clearScreen()
+	term.clear()
+	term.setCursorPos(1,1)
 end
 
-function right()
-    turtle.turnRight()
-    frwd(1)
-    turtle.turnRight()
+function setup()
+	posX = 0
+	posY = 0
+	posZ = 0
+	rotation = 0
+	layerType = 0
+	clearScreen()
+	io.write("Quarry or bore? ")
+	mineType = io.read()
+	clearScreen()
+	io.write("Rows: ")
+	rows = io.read()
+	io.write("Columns: ")
+	columns = io.read()
+	clearScreen()
+	if mineType == "quarry" then
+		io.write("Current 'y' level: ")
+		iniY = io.read()
+		iniY = tonumber (iniY)
+		clearScreen()
+	end
+	start()
 end
 
-function left()
-    turtle.turnLeft()
-    frwd(1)
-    turtle.turnLeft()
+function info()
+	clearScreen()
+	print("Creating a " .. rows .. "x" .. columns .. " " .. mineType)
+	print("Total distance: " .. posX + posY + posZ)
+	print("X: " .. posX)
+	print("Y: " .. posY)
+	print("Z: " .. posZ)
+	print("Rotation: " .. rotation)
+	print("Layer Type: " .. layerType)
+	print("Fuel level: " .. turtle.getFuelLevel())
 end
 
---Consumes minimum refuel
-function refuel(limit)
-    local fuel = turtle.getFuelLevel()
-    
-    while turtle.getFuelLevel() <= limit do
-        local i = 1
-        
-        while i <= 16 do
-            turtle.select(i)
-            
-            if turtle.getFuelLevel() <= limit then
-                if turtle.refuel(0) then
-                    print("\nTurtle> Consuming: ".."\""..turtle.getItemDetail().name.."\"")
-                    turtle.refuel(1)
-                    print("Turtle> Fuel: "..turtle.getFuelLevel())
-                    fuel = turtle.getFuelLevel()
-                    i = 0
-                    
-                elseif i == 16 then
-                    if fuel == turtle.getFuelLevel() then
-                        turtle.select(1)
-                        return false
-                    end
-                end
-            else
-                turtle.select(1)
-                return true
-            end
-            i = i + 1
-        end
-    end
+function orientate()
+	if rotation == 0 then
+		turtle.turnLeft()
+		rotation = 3
+		info()
+	elseif rotation == 1 then
+		turtle.turnLeft()
+		rotation = 0
+		info()
+		turtle.turnLeft()
+		rotation = 3
+		info()
+	elseif rotation == 2 then
+		turtle.turnRight()
+		rotation = 3
+		info()
+	end
 end
 
-function emptySlots() 
-    local empty = 16  
-     
-    for i = 1, 16 do        
-        if turtle.getItemCount(i) ~= 0 then
-            empty = empty - 1
-        end 
-    end
-    return empty   
+function recover()
+	orientate()
+	stepY = posY
+	stepX = posX
+	stepZ = posZ
+	for posY = stepY - 1, 0, -1 do
+		turtle.up()
+		info()
+	end
+	for posX = stepX - 1, 0, -1 do
+		turtle.forward()
+		info()
+	end
+	turtle.turnLeft()
+	for posZ = stepZ - 1, 0, -1 do
+		turtle.forward()
+		info()
+	end
 end
 
-function placeChest(slot)
-    turtle.select(slot)
-    
-    turtle.turnLeft()
-    turtle.turnLeft()
-    
-    --Places 1st chest
-    turtle.dig()
-    turtle.place()
-    turtle.digUp()
-    turtle.up()
-    turtle.dig()
-    turtle.down()
-    
-    turtle.turnLeft()
-    frwd(1)
-    turtle.turnRight()
-    
-    --Places 2nd chest
-    turtle.dig()
-    turtle.place()
-    turtle.digUp()
-    turtle.up()
-    turtle.dig()
-    turtle.down()
-    
-    turtle.turnRight()
-    frwd(1)
-    turtle.turnRight()
-     
-    print("\nTurtle> Deployed chest")
+function digStraight()
+	turtle.digDown()
+	turtle.dig()
+	turtle.dig()
+	turtle.forward()
+	if rotation == 0 then
+		posZ = posZ + 1
+	elseif rotation == 1 then
+		posX = posX + 1
+	elseif rotation == 2 then
+		posZ = posZ - 1
+	elseif rotation == 3 then
+		posX = posX - 1
+	end
+	turtle.digUp()
+	info()
 end
 
-function dumpChest(returning)
-    refuel((area + diggedLevel) * 2)
-    
-    if diggedLevel % 2 == 0 and diggedLevel ~= 0 then
-		      if size % 2 ~= 0 then        
-       	    frwd(stepSize)
-            turtle.turnRight()
-         	  frwd(stepSize)
-         	  turtle.turnRight()
-    		
-		      else
-			         turtle.turnLeft()
-			         frwd(stepSize)
-			         turtle.turnRight()
-		      end
-	   end
-    
-    for i = 1, diggedLevel - 1 do
-        turtle.digUp()
-        turtle.up()
-    end
-        
-    turtle.turnLeft()
-    turtle.turnLeft()
-        
-    for i = 1, 16 do
-        turtle.select(i)
-        
-        if not turtle.refuel(0) then
-            turtle.drop()
-        end
-    end
-    turtle.select(1)
-        
-    print("\nTurtle> Emptyed inventory!")
-      
-    turtle.turnRight()
-    turtle.turnRight()
-    
-    if returning then    
-        for i = 1, diggedLevel - 1 do
-            turtle.digDown()
-            turtle.down()
-        end
-    
-        if diggedLevel % 2 == 0 and diggedLevel ~= 0 then
-            if size % 2 ~= 0 then        
-                frwd(stepSize)
-                turtle.turnRight()
-                frwd(stepSize)
-                turtle.turnRight()
-    		
-            else
-				            turtle.turnRight()
-				            frwd(stepSize)
-				            turtle.turnLeft()
-            end
-        end
-    end
+function nextRow()
+	if layerType == 0 then
+		if rotation == 0 then
+			turtle.turnRight()
+			rotation = 1
+			info()
+			digStraight()
+			turtle.turnRight()
+			rotation = 2
+			info()
+		elseif rotation == 2 then
+			turtle.turnLeft()
+			rotation = 1
+			info()
+			digStraight()
+			turtle.turnLeft()
+			rotation = 0
+			info()
+		end
+	elseif layerType == 1 then
+		if rotation == 0 then
+			turtle.turnLeft()
+			rotation = 3
+			info()
+			digStraight()
+			turtle.turnLeft()
+			rotation = 2
+			info()
+		elseif rotation == 2 then
+			turtle.turnRight()
+			rotation = 3
+			info()
+			digStraight()
+			turtle.turnRight()
+			rotation = 0
+			info()
+		end
+	end
 end
 
---Main program
-local chestThere = 0
-for i = 1, 16 do
-    if turtle.getItemCount(i) >= 2 then
-        if turtle.getItemDetail(i).name == "minecraft:chest" then     
-            chestThere = i
-            break
-        end
-    end
+function nextLayer()
+	turtle.turnRight()
+	if rotation == 0 then
+		rotation = 1
+		info()
+	elseif rotation == 2 then
+		rotation = 3
+		info()
+	end
+	turtle.turnRight()
+	if rotation == 1 then
+		rotation = 2
+		info()
+	elseif rotation == 3 then
+		rotation = 0
+		info()
+	end
+	turtle.down()
+	posY = posY + 1
+	info()
+	turtle.digDown()
+	turtle.down()
+	posY = posY + 1
+	info()
+	turtle.digDown()
+	turtle.down()
+	posY = posY + 1
+	info()
+	if layerType == 0 then
+		layerType = 1
+	elseif layerType == 1 then
+		layerType = 0
+	end
 end
 
-refuel(6)
-            
-if chestThere ~= 0 then    
-    placeChest(chestThere)
-        
-else
-    print("\nTurtle> Please give me 2 normal") 
-    print("Turtle> minecraft chest")
-    print("\nTurtle> Enter which slot has the chest") 
-    print("Turtle> or 0 to not deploy\n")
-    term.write("You> ")
-    local chestIn = tonumber(read())
-
-    if chestIn == 0 then
-        print("\nTurtle> Make sure there is a chest") 
-        print("Turtle> behind the starting point")
-    
-    elseif chestIn ~= 0 then
-        if turtle.getItemCount(chestIn) >= 2 then
-            if turtle.getItemDetail(chestIn).name == "minecraft:chest" then
-                placeChest(chestIn)
-        
-            else
-                print("\nTurtle> Chest not found")
-                print("Turtle> Terminating!")
-                exit()
-            end     
-        else
-            print("\nTurtle> Minimum 2 chest are required")
-            print("Turtle> Terminating!")
-            exit()
-        end
-    else 
-        print("\nTurtle> Enter a value between 0 to 16")
-        print("Turtle> Terminating!")
-        exit()
-    end
+function layerMove()
+	for c = columns, 1, -1 do
+		for r = rows, 2, -1 do
+			digStraight()
+		end
+		if c > 1 then
+			nextRow()
+		else
+			turtle.digDown()
+		end
+	end
 end
 
-while diggedLevel <= meter - 1 do     
-    if emptySlots() == 0 then
-        print("\nTurtle> Inventory Full!")
-        print("Turtle> Emptying inventory")
-        
-        dumpChest(true)
-        print("\nTurtle> Continuing...")
-    end 
-   
-    if turtle.getFuelLevel() <= area + 3 then 
-        if not refuel(area + 3) then
-            print("\nTurtle> Fuel: "..turtle.getFuelLevel().." < "..area)
-            print("Turtle> Terminating! Low fuel")
-            exit()
-        end
-    end
-    
-    if diggedLevel == 0 then
-        turtle.digDown()
-        turtle.down()
-        
-        diggedLevel = diggedLevel + 2
-
-    else
-        for i = 1, 3 do
-            turtle.digDown()
-            turtle.down()   
-        end
-        
-        diggedLevel = diggedLevel + 3
-    end
-    
-    if size % 2 == 0 then        
-        for i = 1, size do
-            frwd(stepSize)
-            
-            if diggedLevel % 2 ~= 0 then
-                if i ~= size then
-                    if i % 2 == 0 then
-                        right()
-                    else
-                        left()
-                    end
-                end
-
-            else
-                if i ~= size then
-                    if i % 2 == 0 then
-                        left()
-                    else
-                        right()
-                    end
-                end	
-            end
-        end
-    else    
-        for i = 1, size / 2 do
-            frwd(stepSize)
-            right()
-            frwd(stepSize)
-            left()
-        end 
-        
-        frwd(stepSize)
-    end
-    
-    turtle.turnRight()
-    turtle.turnRight()
-    turtle.digUp()
-    turtle.digDown()
-    
-    print("\nTurtle> Digged: "..diggedLevel.."/"..meter.." levels")    
+function quarry()
+	turtle.digDown()
+	turtle.down()
+	posY = posY + 1
+	info()
+	turtle.digDown()
+	turtle.down()
+	posY = posY + 1
+	info()
+	while posY < iniY - 2 do
+		layerMove()
+		nextLayer()
+	end
+	recover()
 end
 
-dumpChest(false)
-print("\nTurtle> Mining complete! Terminating!")
+function bore()
+	turtle.up()
+	posY = posY + 1
+	info()
+	turtle.dig()
+	turtle.forward()
+	posZ = posZ + 1
+	info()
+	turtle.digUp()
+	layerMove()
+	recover()
+end
+
+function start()
+	if mineType == "quarry" then
+		quarry()
+	elseif mineType == "bore" then
+		bore()
+	else
+		setup()
+	end
+end
+
+setup()
